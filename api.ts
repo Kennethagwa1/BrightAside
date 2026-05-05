@@ -1,106 +1,42 @@
-export interface Member {
-  id: string | number;
-  name: string;
-  designation: string;
-  pin: string;
-  joinDate: string;
-  active: boolean | string;
-}
+import { Member, Settings, DashboardStats } from '../types';
 
-export interface SavingsRow {
-  id: string;
-  memberId: string | number;
-  weekStart: string;
-  weekEnd: string;
-  amountPaid: number;
-  status: 'paid' | 'partial' | 'unpaid';
-  recordedBy: string;
-  recordedAt: string;
-  notes: string;
-}
+let API_URL = localStorage.getItem('BRIGHT_ASIDE_API_URL') || '';
 
-export interface Loan {
-  id: string;
-  memberId: string | number;
-  principal: number;
-  interestRate: number;
-  interest: number;
-  insurance: number;
-  totalDue: number;
-  termYears: number;
-  startDate: string;
-  approvedDate: string;
-  status: 'active' | 'closed' | 'defaulted';
-  approvedBy: string;
-  paidAmount?: number;
-  balance?: number;
-}
+export const setApiUrl = (url: string) => {
+  API_URL = url;
+  localStorage.setItem('BRIGHT_ASIDE_API_URL', url);
+};
 
-export interface LoanPayment {
-  id: string;
-  loanId: string;
-  memberId: string | number;
-  paymentDate: string;
-  amountPaid: number;
-  recordedBy: string;
-  notes: string;
-}
+export const getApiUrl = () => API_URL;
 
-export interface WelfareEntry {
-  id: string;
-  memberId: string | number;
-  month: string;
-  year: number | string;
-  amountPaid: number;
-  status: 'paid' | 'unpaid';
-  datePaid: string;
-  recordedBy: string;
-}
+const handleRes = async (res: Response) => {
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'API Error');
+  return json.data;
+};
 
-export interface Fine {
-  id: string;
-  memberId: string | number;
-  fineType: 'savings' | 'loan' | 'welfare';
-  referenceWeekOrMonth: string;
-  amount: number;
-  status: 'unpaid' | 'paid' | 'waived';
-  reason: string;
-  createdAt: string;
-  resolvedAt: string;
-  resolvedBy: string;
-}
+export const API = {
+  get: async (action: string, params: Record<string, any> = {}) => {
+    if (!API_URL) return null;
+    const url = new URL(API_URL);
+    url.searchParams.set('action', action);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
+    
+    // Using a proxy or direct fetch depending on environment
+    // In many cases Apps Script requires CORS handling
+    const res = await fetch(url.toString());
+    return handleRes(res);
+  },
+  
+  post: async (action: string, payload: any = {}) => {
+    if (!API_URL) return null;
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      redirect: 'follow', // Important for GAS
+      body: JSON.stringify({ action, payload })
+    });
+    return handleRes(res);
+  }
+};
 
-export interface ChangeLogEntry {
-  id: string;
-  timestamp: string;
-  adminUser: string;
-  action: string;
-  entity: string;
-  entityId: string;
-  memberId: string;
-  oldValue: string;
-  newValue: string;
-  undone: boolean | string;
-}
-
-export interface Settings {
-  weeklyMinSavings: number;
-  welfareMontlyAmount: number;
-  savingsFine: number;
-  loanRepaymentFine: number;
-  welfareFine: number;
-  loanRate1yr: number;
-  loanRate2yr: number;
-  insuranceRate: number;
-  loanMaxPct: number;
-  adminUsername: string;
-  adminPasswordHash: string;
-}
-
-export interface DashboardStats {
-  memberCount: number;
-  activeLoansCount: number;
-  totalSavings: number;
-  totalArrears: number;
-  totalPendingFines: number;
-}
+export default API;
